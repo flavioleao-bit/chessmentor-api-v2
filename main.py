@@ -1,5 +1,6 @@
-from fastapi import FastAPI
+ffrom fastapi import FastAPI
 from pydantic import BaseModel
+from fastapi.openapi.utils import get_openapi
 
 app = FastAPI()
 
