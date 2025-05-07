@@ -1,8 +1,25 @@
-ffrom fastapi import FastAPI
+from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.openapi.utils import get_openapi
 
 app = FastAPI()
+
+def custom_openapi():
+    if app.openapi_schema:
+        return app.openapi_schema
+    openapi_schema = get_openapi(
+        title="Chess Mentor API",
+        version="2.0.0",
+        description="API para suporte ao GPT Chess Mentor 2.1",
+        routes=app.routes,
+    )
+    openapi_schema["servers"] = [
+        {"url": "https://chessmentor-api-v2.onrender.com"}
+    ]
+    app.openapi_schema = openapi_schema
+    return app.openapi_schema
+
+app.openapi = custom_openapi
 
 
 # 🔹 Endpoint 1: reconstrução do tabuleiro a partir de PGN
