@@ -87,3 +87,17 @@ def search_games(req: SearchGamesInput):
             }
         ]
     }
+from fastapi.openapi.utils import get_openapi
+
+@app.get("/openapi.json", include_in_schema=False)
+async def custom_openapi():
+    openapi_schema = get_openapi(
+        title="Chess Mentor API",
+        version="2.0.0",
+        description="API para suporte ao GPT Chess Mentor 2.1",
+        routes=app.routes,
+    )
+    openapi_schema["servers"] = [
+        {"url": "https://chessmentor-api-v2.onrender.com"}
+    ]
+    return openapi_schema
