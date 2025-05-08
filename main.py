@@ -1,8 +1,6 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.openapi.utils import get_openapi
-import chess
-import chess.engine
 
 app = FastAPI()
 
@@ -35,39 +33,21 @@ def obter_estado(req: PGNInput):
         "pgn": req.pgn
     }
 
-# 🔹 Endpoint 2: análise real com Stockfish local
+# 🔹 Endpoint 2: análise simulada
 class AnalyzeInput(BaseModel):
     fen: str
-    depth: int = 15
-    multiPV: int = 3
+    depth: int = 18
+    multiPV: int = 10
 
 @app.post("/analyze", operation_id="analyzePosition")
 def analyze_position(req: AnalyzeInput):
-    try:
-        engine_path = "C:\Users\PC\OneDrive\01 ARTUR YUSUPOV\chessmentor\stockfish-windows-x86-64-avx2\stockfish\stockfish-windows-x86-64-avx2.exe"
-        board = chess.Board(req.fen)
-        engine = chess.engine.SimpleEngine.popen_uci(engine_path)
-        result = engine.analyse(board, chess.engine.Limit(depth=req.depth), multipv=req.multiPV)
-
-        respostas = []
-        for entry in result if isinstance(result, list) else [result]:
-            move = entry["pv"][0].uci()
-            score = entry["score"].pov(chess.WHITE).score(mate_score=10000)
-            respostas.append({
-                "move": move,
-                "score": score,
-                "type": "mate" if entry["score"].is_mate() else "cp"
-            })
-
-        engine.quit()
-        return {
-            "fen": req.fen,
-            "bestMoves": respostas,
-            "depth": req.depth
-        }
-
-    except Exception as e:
-        return {"error": str(e)}
+    return {
+        "message": "Análise simulada da FEN",
+        "fen": req.fen,
+        "depth": req.depth,
+        "multiPV": req.multiPV,
+        "bestMoves": ["Nf3", "d4", "Bc4"]
+    }
 
 # 🔹 Endpoint 3: estatísticas de abertura
 class OpeningInput(BaseModel):
@@ -120,16 +100,3 @@ def search_games(req: SearchGamesInput):
             }
         ]
     }
-
-@app.get("/openapi.json", include_in_schema=False)
-async def custom_openapi():
-    openapi_schema = get_openapi(
-        title="Chess Mentor API",
-        version="2.0.0",
-        description="API para suporte ao GPT Chess Mentor 2.1",
-        routes=app.routes,
-    )
-    openapi_schema["servers"] = [
-        {"url": "https://chessmentor-api-v2.onrender.com"}
-    ]
-    return openapi_schema
