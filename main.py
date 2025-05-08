@@ -1,6 +1,8 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.openapi.utils import get_openapi
+import chess
+import chess.engine
 
 app = FastAPI()
 
@@ -21,7 +23,6 @@ def custom_openapi():
 
 app.openapi = custom_openapi
 
-
 # 🔹 Endpoint 1: reconstrução do tabuleiro a partir de PGN
 class PGNInput(BaseModel):
     pgn: str
@@ -34,23 +35,39 @@ def obter_estado(req: PGNInput):
         "pgn": req.pgn
     }
 
-
-# 🔹 Endpoint 2: análise da posição (simulada)
+# 🔹 Endpoint 2: análise real com Stockfish local
 class AnalyzeInput(BaseModel):
     fen: str
-    depth: int = 18
-    multiPV: int = 10
+    depth: int = 15
+    multiPV: int = 3
 
 @app.post("/analyze", operation_id="analyzePosition")
 def analyze_position(req: AnalyzeInput):
-    return {
-        "message": "Análise simulada da FEN",
-        "fen": req.fen,
-        "depth": req.depth,
-        "multiPV": req.multiPV,
-        "bestMoves": ["Nf3", "d4", "Bc4"]
-    }
+    try:
+        engine_path = "C:\Users\PC\OneDrive\01 ARTUR YUSUPOV\chessmentor\stockfish-windows-x86-64-avx2\stockfish\stockfish-windows-x86-64-avx2.exe"
+        board = chess.Board(req.fen)
+        engine = chess.engine.SimpleEngine.popen_uci(engine_path)
+        result = engine.analyse(board, chess.engine.Limit(depth=req.depth), multipv=req.multiPV)
 
+        respostas = []
+        for entry in result if isinstance(result, list) else [result]:
+            move = entry["pv"][0].uci()
+            score = entry["score"].pov(chess.WHITE).score(mate_score=10000)
+            respostas.append({
+                "move": move,
+                "score": score,
+                "type": "mate" if entry["score"].is_mate() else "cp"
+            })
+
+        engine.quit()
+        return {
+            "fen": req.fen,
+            "bestMoves": respostas,
+            "depth": req.depth
+        }
+
+    except Exception as e:
+        return {"error": str(e)}
 
 # 🔹 Endpoint 3: estatísticas de abertura
 class OpeningInput(BaseModel):
@@ -65,7 +82,6 @@ def opening_stats(req: OpeningInput):
         "stats": {"white": 42, "draw": 28, "black": 30}
     }
 
-
 # 🔹 Endpoint 4: finais com tablebase
 class TablebaseInput(BaseModel):
     fen: str
@@ -78,7 +94,6 @@ def tablebase_lookup(req: TablebaseInput):
         "dtm": 0,
         "winningLine": ["Kd6", "Rc7", "Ra8"]
     }
-
 
 # 🔹 Endpoint 5: busca de partidas modelo
 class SearchGamesInput(BaseModel):
@@ -105,7 +120,6 @@ def search_games(req: SearchGamesInput):
             }
         ]
     }
-from fastapi.openapi.utils import get_openapi
 
 @app.get("/openapi.json", include_in_schema=False)
 async def custom_openapi():
